@@ -492,6 +492,11 @@ def dump_vectors(generator, vectorfile):
             f.write(gram + ' ' + numstr + '\n')
 
 
+def dump_targets(generator, targetfile):
+    with open(targetfile, 'w') as f:
+        f.writelines([f'{target}\n' for target in generator])
+
+
 def context_vectors(targets, w2v, documents, wnd=10, checkpoint=None, comm=None):
     '''constructs context vectors from documents
     Args:
@@ -535,6 +540,8 @@ def parse():
     parser.add_argument('-w', '--window', default=10, help='size of context window', type=int)
     parser.add_argument('-e', '--english', action='store_true', help='check documents for English')
     parser.add_argument('-l', '--lower', action='store_true', help='lower-case documents')
+    parser.add_argument('--create-new', action='store_true', help='Also create embeddings for words that are already in'
+                                                                  'the original embeddings.')
 
     return parser.parse_args()
 
@@ -557,7 +564,10 @@ def main(args, comm=None):
     else:
         write('Loading Targets from ' + args.targets + '\n', comm)
         with open(args.targets, 'r') as f:
-            targets = [target for target in (line.strip() for line in f) if not target in w2v]
+            if args.create_new:
+                targets = [target for target in (line.strip() for line in f)]
+            else:
+                targets = [target for target in (line.strip() for line in f) if not target in w2v]
         assert len(targets), "no uncovered targets found"
         write('Induction Matrix: ' + matrixfile + '\n', comm)
         assert os.path.isfile(matrixfile), "induction matrix must be given if targets given"
@@ -620,6 +630,7 @@ def main(args, comm=None):
         context_vectors.tofile(root + '_target_context_vectors.bin')
         context_vectors[nz] = np.true_divide(context_vectors[nz], target_counts[nz, None], dtype=FLOAT)
         dump_vectors(zip(targets, context_vectors.dot(M.T)), root + '_alacarte.txt')
+        dump_targets(np.asarray(targets)[np.invert(nz)], root + '_not_found.txt')
 
 
 if __name__ == '__main__':
