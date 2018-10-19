@@ -568,6 +568,8 @@ def main(args, comm=None):
                 targets = [target for target in (line.strip() for line in f)]
             else:
                 targets = [target for target in (line.strip() for line in f) if not target in w2v]
+        if args.lower:
+            targets = [target.lower() for target in targets]
         assert len(targets), "no uncovered targets found"
         write('Induction Matrix: ' + matrixfile + '\n', comm)
         assert os.path.isfile(matrixfile), "induction matrix must be given if targets given"
